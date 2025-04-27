@@ -6,9 +6,16 @@ This project is a scalable, cost-effective Content Management System (CMS) built
 
 ---
 
-## Architecture Diagram
+## Architecture Diagrams
 
-![Serverless CMS Architecture](serverless_cms_architecture.png)
+### High Level Architecture
+![High Level Architecture](architecture_high_level.png)
+
+### Service Level Architecture
+![Service Level Architecture](architecture_service_level.png)
+
+### Detailed Implementation
+![Detailed Implementation](architecture_detailed.png)
 
 ---
 

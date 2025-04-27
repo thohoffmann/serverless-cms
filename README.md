@@ -6,6 +6,12 @@ This project is a scalable, cost-effective Content Management System (CMS) built
 
 ---
 
+## Architecture Diagram
+
+![Serverless CMS Architecture](serverless_cms_architecture.png)
+
+---
+
 ## Features
 
 - **API-driven**: All content operations (CRUD) are performed via a secure API.

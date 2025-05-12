@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Serverless CMS API Test</title>
+    <!-- Add React and ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <!-- Add Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Load Chart.js from a different CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+    <!-- Add Babel configuration -->
+    <script>
+        window.Babel = Babel;
+        Babel.transformAsync = async function(code, options) {
+            return new Promise((resolve) => {
+                resolve(Babel.transform(code, options));
+            });
+        };
+    </script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .card {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h2 {
+            margin-top: 0;
+            color: #333;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .content-item {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+        .error {
+            color: red;
+            margin-bottom: 10px;
+            padding: 10px;
+            background-color: #ffeeee;
+            border: 1px solid #ffcccc;
+            border-radius: 4px;
+        }
+        .api-status {
+            margin-bottom: 20px;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .api-status.success {
+            background-color: #dff0d8;
+            border: 1px solid #d6e9c6;
+            color: #3c763d;
+        }
+        .api-status.error {
+            background-color: #f2dede;
+            border: 1px solid #ebccd1;
+            color: #a94442;
+        }
+        .api-url-form {
+            margin-bottom: 20px;
+        }
+        .api-url-input {
+            width: 70%;
+            margin-right: 10px;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            height: 400px;
+        }
+        .chart-controls {
+            margin-bottom: 20px;
+        }
+        
+        .chart-controls button {
+            margin-right: 10px;
+        }
+        
+        .chart-controls label {
+            margin-right: 10px;
+        }
+        
+        .chart-controls input {
+            margin-left: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Serverless CMS API Test</h1>
+    
+    <div class="card">
+        <h2>API Connection</h2>
+        <div id="api-status" class="api-status">Checking API connection...</div>
+        
+        <form id="api-url-form" class="api-url-form">
+            <label for="api-url">API Base URL:</label>
+            <input type="text" id="api-url" class="api-url-input" value="https://fumzzf8i07.execute-api.eu-west-2.amazonaws.com/prod">
+            <button type="submit">Update & Test</button>
+        </form>
+        
+        <div class="api-notice" style="margin-top: 15px; padding: 10px; background-color: #d9edf7; border: 1px solid #bce8f1; border-radius: 4px; color: #31708f;">
+            <strong>Update:</strong> The API now has full CRUD functionality implemented with DynamoDB integration. 
+            All endpoints interact with the database and perform real operations.
+        </div>
+    </div>
+    
+    <div class="card">
+        <h2>Create Content</h2>
+        <form id="create-form">
+            <label for="title">Title:</label>
+            <input type="text" id="title" name="title" required>
+            
+            <label for="author">Author:</label>
+            <input type="text" id="author" name="author" required>
+            
+            <label for="content">Content:</label>
+            <textarea id="content" name="content" rows="4" required></textarea>
+            
+            <button type="submit">Create Content</button>
+        </form>
+        <div id="create-result"></div>
+    </div>
+    
+    <div class="card">
+        <h2>Get Content by ID</h2>
+        <form id="get-form">
+            <label for="content-id">Content ID:</label>
+            <input type="text" id="content-id" name="content-id" required>
+            
+            <button type="submit">Get Content</button>
+        </form>
+        <div id="get-result"></div>
+    </div>
+    
+    <div class="card">
+        <h2>Get All Content</h2>
+        <button id="get-all-btn">Fetch All Content</button>
+        <div id="content-list"></div>
+    </div>
+    
+    <div class="card">
+        <h2>Update Content</h2>
+        <form id="update-form">
+            <label for="update-id">Content ID:</label>
+            <input type="text" id="update-id" name="update-id" required>
+            
+            <label for="update-title">Title:</label>
+            <input type="text" id="update-title" name="update-title" required>
+            
+            <label for="update-author">Author:</label>
+            <input type="text" id="update-author" name="update-author" required>
+            
+            <label for="update-content">Content:</label>
+            <textarea id="update-content" name="update-content" rows="4" required></textarea>
+            
+            <button type="submit">Update Content</button>
+        </form>
+        <div id="update-result"></div>
+    </div>
+    
+    <div class="card">
+        <h2>Delete Content</h2>
+        <form id="delete-form">
+            <label for="delete-id">Content ID:</label>
+            <input type="text" id="delete-id" name="delete-id" required>
+            
+            <button type="submit">Delete Content</button>
+        </form>
+        <div id="delete-result"></div>
+    </div>
+
+    <div class="card">
+        <h2>Commodity Price Chart</h2>
+        <div class="chart-container">
+            <canvas id="commodityChart"></canvas>
+        </div>
+        <div style="margin-top: 20px;">
+            <button onclick="toggleLine()" id="lineToggle">Show Line</button>
+            <div id="controls" style="display: none; margin-top: 10px;">
+                <label>
+                    Angle: <input type="range" min="-90" max="90" value="45" oninput="updateAngle(this.value)">
+                    <span id="angleValue">45°</span>
+                </label>
+                <br>
+                <label>
+                    Offset: <input type="range" min="-100" max="100" value="0" oninput="updateOffset(this.value)">
+                    <span id="offsetValue">0%</span>
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        console.log('Script starting...');
+        
+        // Check if Chart.js is loaded
+        console.log('Chart object available:', typeof Chart !== 'undefined');
+        
+        let myChart = null;
+        let showLine = false;
+        let angle = 45;
+        let offset = 0;
+
+        const data = {
+            labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+            datasets: [
+                {
+                    label: 'Price',
+                    data: [65, 59, 80, 81, 56, 55],
+                    borderColor: 'rgb(75, 192, 192)',
+                    tension: 0.1
+                },
+                {
+                    label: 'Trend',
+                    data: [],
+                    borderColor: 'rgb(255, 99, 132)',
+                    borderDash: [5, 5],
+                    tension: 0
+                }
+            ]
+        };
+
+        function calculateTrendLine() {
+            const prices = data.datasets[0].data;
+            const firstPrice = prices[0];
+            const lastPrice = prices[prices.length - 1];
+            const priceRange = Math.max(...prices) - Math.min(...prices);
+            const verticalOffset = (offset / 100) * priceRange;
+            
+            const angleRad = (angle * Math.PI) / 180;
+            return data.labels.map((_, index) => {
+                const progress = index / (data.labels.length - 1);
+                const baseY = firstPrice + (lastPrice - firstPrice) * progress;
+                const offsetY = Math.tan(angleRad) * progress * priceRange;
+                return baseY + offsetY + verticalOffset;
+            });
+        }
+
+        function updateChart() {
+            console.log('Updating chart:', myChart);
+            if (!myChart) return;
+            
+            data.datasets[1].data = showLine ? calculateTrendLine() : [];
+            myChart.update();
+        }
+
+        function toggleLine() {
+            console.log('Toggling line...');
+            showLine = !showLine;
+            const button = document.getElementById('lineToggle');
+            button.textContent = showLine ? 'Hide Line' : 'Show Line';
+            button.style.backgroundColor = showLine ? '#ff6384' : '#4CAF50';
+            document.getElementById('controls').style.display = showLine ? 'block' : 'none';
+            updateChart();
+        }
+
+        function updateAngle(value) {
+            angle = parseInt(value);
+            document.getElementById('angleValue').textContent = angle + '°';
+            updateChart();
+        }
+
+        function updateOffset(value) {
+            offset = parseInt(value);
+            document.getElementById('offsetValue').textContent = offset + '%';
+            updateChart();
+        }
+
+        function initChart() {
+            console.log('Initializing chart...');
+            try {
+                const canvas = document.getElementById('commodityChart');
+                console.log('Canvas element:', canvas);
+                
+                const ctx = canvas.getContext('2d');
+                console.log('Canvas context:', ctx);
+                
+                myChart = new Chart(ctx, {
+                    type: 'line',
+                    data: data,
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: false
+                            }
+                        }
+                    }
+                });
+                console.log('Chart created:', myChart);
+            } catch (error) {
+                console.error('Error creating chart:', error);
+            }
+        }
+
+        // Initialize chart when everything is loaded
+        if (document.readyState === 'loading') {
+            console.log('Document still loading, adding event listener...');
+            document.addEventListener('DOMContentLoaded', initChart);
+        } else {
+            console.log('Document already loaded, initializing chart...');
+            initChart();
+        }
+
+        // Backup initialization
+        window.addEventListener('load', function() {
+            console.log('Window load event fired');
+            if (!myChart) {
+                console.log('Chart not initialized yet, trying again...');
+                initChart();
+            }
+        });
+
+        // API base URL - configurable
+        let API_URL = 'https://fumzzf8i07.execute-api.eu-west-2.amazonaws.com/prod';
+        
+        // Test API connection
+        async function testApiConnection() {
+            const apiStatus = document.getElementById('api-status');
+            apiStatus.innerHTML = 'Testing connection to API...';
+            apiStatus.className = 'api-status';
+            
+            try {
+                const response = await fetch(`${API_URL}/content`, {
+                    method: 'GET',
+                    // Add CORS mode and credentials to help with cross-origin issues
+                    mode: 'cors',
+                    credentials: 'omit',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    apiStatus.innerHTML = `✅ Connected successfully to API at ${API_URL}`;
+                    apiStatus.className = 'api-status success';
+                    return true;
+                } else {
+                    apiStatus.innerHTML = `❌ API returned status ${response.status}: ${response.statusText}`;
+                    apiStatus.className = 'api-status error';
+                    console.error('API error:', response);
+                    return false;
+                }
+            } catch (error) {
+                apiStatus.innerHTML = `❌ Failed to connect to API: ${error.message}<br>
+                <small>This might be due to:<br>
+                - API server is down<br>
+                - CORS restrictions (try opening this page from a web server)<br>
+                - Network connectivity issues<br>
+                - Incorrect API URL</small>`;
+                apiStatus.className = 'api-status error';
+                console.error('API connection error:', error);
+                return false;
+            }
+        }
+        
+        // Update API URL
+        document.getElementById('api-url-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const newUrl = document.getElementById('api-url').value.trim();
+            if (newUrl) {
+                API_URL = newUrl;
+                await testApiConnection();
+            }
+        });
+        
+        // Get all content
+        document.getElementById('get-all-btn').addEventListener('click', async () => {
+            const contentList = document.getElementById('content-list');
+            contentList.innerHTML = 'Loading...';
+            
+            try {
+                const response = await fetch(`${API_URL}/content`, {
+                    mode: 'cors',
+                    credentials: 'omit',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`API responded with status ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                
+                // Log full response for debugging
+                console.log('Get all content response:', data);
+                
+                // Display items from the response
+                if (data.items && Array.isArray(data.items)) {
+                    contentList.innerHTML = data.items.length === 0 ? 'No content found' : '';
+                    data.items.forEach(item => {
+                        contentList.innerHTML += `
+                            <div class="content-item">
+                                <h3>${item.title || 'Untitled'}</h3>
+                                <p><strong>ID:</strong> ${item.id || 'Unknown'}</p>
+                                <p><strong>Author:</strong> ${item.author || 'Unknown'}</p>
+                                <p>${item.content || 'No content'}</p>
+                                <p><small>Created: ${item.timestamp ? new Date(item.timestamp).toLocaleString() : 'Unknown'}</small></p>
+                            </div>
+                        `;
+                    });
+                } else {
+                    // Just display raw response if we can't parse it
+                    contentList.innerHTML = `
+                        <div class="content-item">
+                            <h3>API Response</h3>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                contentList.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+                console.error('Get all content error:', error);
+            }
+        });
+        
+        // Get content by ID
+        document.getElementById('get-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const result = document.getElementById('get-result');
+            const id = document.getElementById('content-id').value;
+            result.innerHTML = 'Sending request...';
+            
+            try {
+                const response = await fetch(`${API_URL}/content/${id}`, {
+                    mode: 'cors',
+                    credentials: 'omit',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`API responded with status ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.content) {
+                    const item = data.content;
+                    result.innerHTML = `
+                        <div class="content-item">
+                            <h3>${item.title || 'Untitled'}</h3>
+                            <p><strong>ID:</strong> ${item.id || 'Unknown'}</p>
+                            <p><strong>Author:</strong> ${item.author || 'Unknown'}</p>
+                            <p>${item.content || 'No content'}</p>
+                            <p><small>Created: ${item.timestamp ? new Date(item.timestamp).toLocaleString() : 'Unknown'}</small></p>
+                        </div>
+                    `;
+                } else {
+                    result.innerHTML = `
+                        <div class="content-item">
+                            <h3>API Response</h3>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                result.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+                console.error('Get content error:', error);
+            }
+        });
+        
+        // Create content
+        document.getElementById('create-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const result = document.getElementById('create-result');
+            result.innerHTML = 'Sending request...';
+            
+            try {
+                const response = await fetch(`${API_URL}/content`, {
+                    method: 'POST',
+                    mode: 'cors',
+                    credentials: 'omit',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        title: document.getElementById('title').value,
+                        author: document.getElementById('author').value,
+                        content: document.getElementById('content').value,
+                        timestamp: new Date().toISOString()
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`API responded with status ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.contentId) {
+                    result.innerHTML = `
+                        <div class="content-item">
+                            <h3>Content Created Successfully</h3>
+                            <p><strong>ID:</strong> ${data.contentId}</p>
+                            <pre>${JSON.stringify(data.content || data, null, 2)}</pre>
+                        </div>
+                    `;
+                } else {
+                    result.innerHTML = `
+                        <div class="content-item">
+                            <h3>API Response</h3>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </div>
+                    `;
+                }
+                
+                // Clear form
+                document.getElementById('create-form').reset();
+                
+                // Refresh content list
+                document.getElementById('get-all-btn').click();
+            } catch (error) {
+                result.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+                console.error('Create content error:', error);
+            }
+        });
+        
+        // Update content
+        document.getElementById('update-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const result = document.getElementById('update-result');
+            const id = document.getElementById('update-id').value;
+            result.innerHTML = 'Sending request...';
+            
+            // Log the form data for debugging
+            const updateData = {
+                title: document.getElementById('update-title').value,
+                author: document.getElementById('update-author').value,
+                content: document.getElementById('update-content').value,
+                timestamp: new Date().toISOString()
+            };
+            console.log('Update request data:', updateData);
+            
+            try {
+                const response = await fetch(`${API_URL}/content/${id}`, {
+                    method: 'PUT',
+                    mode: 'cors',
+                    credentials: 'omit',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify(updateData)
+                });
+                
+                // Log the response for debugging
+                console.log('Update response status:', response.status);
+                const responseText = await response.text();
+                console.log('Update response body:', responseText);
+                
+                if (!response.ok) {
+                    throw new Error(`API responded with status ${response.status}: ${responseText}`);
+                }
+                
+                const data = JSON.parse(responseText);
+                
+                if (data.content) {
+                    const item = data.content;
+                    result.innerHTML = `
+                        <div class="content-item">
+                            <h3>Content Updated Successfully</h3>
+                            <p><strong>ID:</strong> ${item.id || 'Unknown'}</p>
+                            <p><strong>Title:</strong> ${item.title || 'Untitled'}</p>
+                            <p><strong>Author:</strong> ${item.author || 'Unknown'}</p>
+                            <p><strong>Content:</strong> ${item.content || 'No content'}</p>
+                        </div>
+                    `;
+                } else {
+                    result.innerHTML = `
+                        <div class="content-item">
+                            <h3>API Response</h3>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </div>
+                    `;
+                }
+                
+                // Refresh content list
+                document.getElementById('get-all-btn').click();
+            } catch (error) {
+                result.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+                console.error('Update content error:', error);
+            }
+        });
+        
+        // Delete content
+        document.getElementById('delete-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const result = document.getElementById('delete-result');
+            const id = document.getElementById('delete-id').value;
+            result.innerHTML = 'Sending request...';
+            
+            try {
+                const response = await fetch(`${API_URL}/content/${id}`, {
+                    method: 'DELETE',
+                    mode: 'cors',
+                    credentials: 'omit',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`API responded with status ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                
+                result.innerHTML = `
+                    <div class="content-item">
+                        <h3>Content Deleted Successfully</h3>
+                        <p><strong>ID:</strong> ${data.contentId || id}</p>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    </div>
+                `;
+                
+                // Refresh content list
+                document.getElementById('get-all-btn').click();
+            } catch (error) {
+                result.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+                console.error('Delete content error:', error);
+            }
+        });
+        
+        // Initialization
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Test API connection first
+            const apiConnected = await testApiConnection();
+            
+            // Only try to load content if API connection is successful
+            if (apiConnected) {
+                document.getElementById('get-all-btn').click();
+            }
+        });
+    </script>
+</body>
+</html> 

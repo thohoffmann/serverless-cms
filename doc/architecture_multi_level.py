@@ -18,6 +18,7 @@ with Diagram("Serverless CMS - High Level Architecture", show=True, filename="ar
     with Cluster("AWS Cloud"):
         with Cluster("Frontend"):
             frontend = React("Web Client")
+            test_client = Client("API Test Page")
         
         with Cluster("API & Compute"):
             api_compute = APIGateway("Content API")
@@ -31,6 +32,7 @@ with Diagram("Serverless CMS - High Level Architecture", show=True, filename="ar
     clients = Client("Users")
     
     clients >> frontend >> api_compute >> storage
+    clients >> test_client >> api_compute
     clients >> security >> api_compute
 
 # 2. Mid-Level Architecture (Services View)
@@ -41,16 +43,17 @@ with Diagram("Serverless CMS - Service Level", show=True, filename="architecture
             cloudfront = CloudFront("CloudFront CDN")
             website = S3("Website Hosting")
             dns = Route53("DNS")
+            api_tester = Client("API Test Page")
         
         # API & Lambda Services
         with Cluster("API & Compute"):
             apigw = APIGateway("API Gateway")
-            functions = Lambda("Lambda Functions")
+            functions = Lambda("Lambda Functions\n(with CRUD operations)")
             events = Eventbridge("Events")
         
         # Storage Services
         with Cluster("Storage"):
-            dynamo = Dynamodb("DynamoDB")
+            dynamo = Dynamodb("DynamoDB\n(active)")
             s3_content = S3("Media Storage")
         
         # Security Services
@@ -69,6 +72,7 @@ with Diagram("Serverless CMS - Service Level", show=True, filename="architecture
     
     # Connections
     users >> dns >> cloudfront >> website
+    users >> api_tester >> apigw  # Added API tester connection
     users >> waf >> apigw >> functions
     functions >> dynamo
     functions >> s3_content
@@ -84,6 +88,7 @@ with Diagram("Serverless CMS - Detailed Implementation", show=True, filename="ar
     with Cluster("Frontend"):
         with Cluster("Static Website (S3)"):
             s3_website = S3("React App")
+            api_test_page = Client("API Test Page\n(Implemented)")
         
         with Cluster("CDN"):
             cdn = CloudFront("Content Distribution")
@@ -111,21 +116,17 @@ with Diagram("Serverless CMS - Detailed Implementation", show=True, filename="ar
     # Lambda Functions
     with Cluster("Business Logic"):
         # Current Implementation
-        content_lambda = LambdaFunction("Content Lambda")
+        content_lambda = LambdaFunction("Content Lambda\n(with CRUD operations)")
         
         # Future Implementation
         with Cluster("Future Lambda Functions"):
-            create_lambda = LambdaFunction("Create Content")
-            read_lambda = LambdaFunction("Read Content")
-            update_lambda = LambdaFunction("Update Content") 
-            delete_lambda = LambdaFunction("Delete Content")
             media_lambda = LambdaFunction("Media Handler")
     
     # Storage Implementation
     with Cluster("Storage"):
         with Cluster("DynamoDB"):
-            content_table = DynamodbTable("Content Table")
-            metadata_table = DynamodbTable("Metadata Table")
+            content_table = DynamodbTable("Content Table\n(active)")
+            metadata_table = DynamodbTable("Metadata Table\n(future)")
         
         with Cluster("S3 Storage"):
             media_bucket = S3("Media Bucket")
@@ -139,24 +140,24 @@ with Diagram("Serverless CMS - Detailed Implementation", show=True, filename="ar
     
     # Workflow Connections
     users >> dns >> cdn >> s3_website
+    users >> api_test_page >> Edge(label="CRUD Requests") >> api
     users >> Edge(label="Request") >> waf_protection >> api
     
-    api >> get_content >> read_lambda
-    api >> post_content >> create_lambda
-    api >> get_content_id >> read_lambda
-    api >> put_content_id >> update_lambda
-    api >> delete_content_id >> delete_lambda
+    # Current implementation
+    api >> get_content >> content_lambda
+    api >> post_content >> content_lambda
+    api >> get_content_id >> content_lambda
+    api >> put_content_id >> content_lambda
+    api >> delete_content_id >> content_lambda
     
-    create_lambda >> content_table
-    read_lambda >> content_table
-    update_lambda >> content_table
-    delete_lambda >> content_table
+    content_lambda >> content_table
     
-    media_lambda >> media_bucket
+    # Future
+    content_lambda >> media_bucket
     
     users >> auth >> api
     
     # Logging connections
     content_lambda - logs
-    [create_lambda, read_lambda, update_lambda, delete_lambda, media_lambda] - logs
+    [media_lambda] - logs
     api - logs 

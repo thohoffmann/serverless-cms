@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Serverless CMS Architecture</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1, h2 {
+            color: #333;
+        }
+        .diagram-container {
+            margin: 30px 0;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+        }
+        .tab {
+            padding: 10px 20px;
+            background-color: #eaeaea;
+            border: 1px solid #ccc;
+            border-bottom: none;
+            border-radius: 5px 5px 0 0;
+            margin-right: 5px;
+            cursor: pointer;
+        }
+        .tab.active {
+            background-color: #fff;
+            border-bottom: 1px solid #fff;
+        }
+        .tab-content {
+            display: none;
+            border: 1px solid #ccc;
+            padding: 20px;
+            border-radius: 0 5px 5px 5px;
+        }
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <h1>Serverless CMS Architecture</h1>
+
+    <div class="tabs">
+        <div class="tab active" onclick="showTab('overview')">Overview</div>
+        <div class="tab" onclick="showTab('detailed')">Detailed View</div>
+    </div>
+
+    <div id="overview" class="tab-content active">
+        <h2>Overview Architecture</h2>
+        <div class="diagram-container">
+            <div class="mermaid">
+flowchart TB
+  subgraph AWS["AWS Cloud"]
+    subgraph CDK["CDK Application"]
+      app["CDK App\n(bin/cdk-app.ts)"]
+      stack["ServerlessCmsStack\n(lib/serverless-cms-stack.ts)"]
+    end
+
+    app --> stack
+    
+    stack --> apig["API Gateway\n(ContentApi)"]
+    stack --> lambda["Lambda Function\n(ContentFunction)"]
+    stack --> dynamo["DynamoDB\n(ContentTable)"]
+    stack --> s3["S3 Bucket\n(MediaBucket)"]
+    
+    apig --> lambda
+    lambda --> dynamo
+    lambda --> s3
+    
+    subgraph client["Client Applications"]
+      frontend["Frontend\n(Web/Mobile)"]
+    end
+    
+    client --> apig
+  end
+  
+  classDef awsService fill:#FF9900,stroke:#232F3E,stroke-width:2px,color:white
+  classDef cdkApp fill:#147EBA,stroke:#232F3E,stroke-width:2px,color:white
+  classDef client fill:#3F8624,stroke:#232F3E,stroke-width:2px,color:white
+  
+  class apig,lambda,dynamo,s3 awsService
+  class app,stack cdkApp
+  class frontend client
+            </div>
+        </div>
+        <h3>Architecture Description</h3>
+        <p>This diagram illustrates the architecture of the Serverless CMS application built with AWS CDK:</p>
+        <ol>
+            <li><strong>CDK Application</strong>:
+                <ul>
+                    <li>The entry point is <code>bin/cdk-app.ts</code>, which initializes the CDK app</li>
+                    <li>The main infrastructure is defined in <code>ServerlessCmsStack</code></li>
+                </ul>
+            </li>
+            <li><strong>AWS Components</strong>:
+                <ul>
+                    <li><strong>API Gateway</strong>: Exposes RESTful endpoints for content management</li>
+                    <li><strong>Lambda Function</strong>: Handles API requests and content operations</li>
+                    <li><strong>DynamoDB</strong>: Stores content data</li>
+                    <li><strong>S3 Bucket</strong>: Stores media files</li>
+                </ul>
+            </li>
+            <li><strong>Client Applications</strong>: Web or mobile applications that consume the API</li>
+        </ol>
+        <p>The application follows a serverless architecture pattern, where all infrastructure is managed by AWS and scales automatically.</p>
+    </div>
+
+    <div id="detailed" class="tab-content">
+        <h2>Detailed Architecture with Data Flow</h2>
+        <div class="diagram-container">
+            <div class="mermaid">
+flowchart TD
+  subgraph Client["Client Applications"]
+    browser[("Browser/\nMobile App")]
+  end
+
+  subgraph AWSCloud["AWS Cloud Infrastructure"]
+    subgraph ApiGateway["API Gateway"]
+      api["ContentApi"]
+      contentRes["Content Resource\n/content"]
+      itemRes["Item Resource\n/content/{id}"]
+      
+      api --> contentRes
+      api --> itemRes
+      
+      GET_content["GET"]
+      POST_content["POST"]
+      GET_item["GET"]
+      PUT_item["PUT"]
+      DELETE_item["DELETE"]
+      
+      contentRes --> GET_content
+      contentRes --> POST_content
+      itemRes --> GET_item
+      itemRes --> PUT_item
+      itemRes --> DELETE_item
+    end
+    
+    subgraph Lambda["Lambda Function"]
+      handler["Content Handler\nindex.handler"]
+      
+      GET_content --> handler
+      POST_content --> handler
+      GET_item --> handler
+      PUT_item --> handler
+      DELETE_item --> handler
+    end
+    
+    subgraph Storage["Storage Layer"]
+      db[("DynamoDB\nContentTable")]
+      s3[("S3 Bucket\nMediaBucket")]
+      
+      handler --> db
+      handler --> s3
+    end
+  end
+  
+  browser --> api
+  
+  classDef client fill:#3F8624,stroke:#232F3E,stroke-width:2px,color:white
+  classDef apiG fill:#FF9900,stroke:#232F3E,stroke-width:2px,color:white
+  classDef lambda fill:#FF9900,stroke:#232F3E,stroke-width:2px,color:white
+  classDef storage fill:#FF9900,stroke:#232F3E,stroke-width:2px,color:white
+  
+  class browser client
+  class api,contentRes,itemRes,GET_content,POST_content,GET_item,PUT_item,DELETE_item apiG
+  class handler lambda
+  class db,s3 storage
+            </div>
+        </div>
+        <h3>Data Flow</h3>
+        <ol>
+            <li><strong>Client</strong> makes requests to the API Gateway endpoints:
+                <ul>
+                    <li><code>GET /content</code> - List all content items</li>
+                    <li><code>POST /content</code> - Create a new content item</li>
+                    <li><code>GET /content/{id}</code> - Retrieve a specific content item</li>
+                    <li><code>PUT /content/{id}</code> - Update a specific content item</li>
+                    <li><code>DELETE /content/{id}</code> - Delete a specific content item</li>
+                </ul>
+            </li>
+            <li><strong>API Gateway</strong> routes these requests to the appropriate Lambda function</li>
+            <li><strong>Lambda Function</strong> processes the requests:
+                <ul>
+                    <li>Validates input</li>
+                    <li>Performs operations on DynamoDB (for content data)</li>
+                    <li>Handles media uploads/downloads via S3</li>
+                    <li>Returns responses to the client</li>
+                </ul>
+            </li>
+            <li><strong>Storage Layer</strong>:
+                <ul>
+                    <li><strong>DynamoDB</strong> stores structured content data (text, metadata)</li>
+                    <li><strong>S3</strong> stores unstructured media files (images, documents)</li>
+                </ul>
+            </li>
+        </ol>
+        <p>This serverless architecture allows for automatic scaling based on demand without managing servers.</p>
+    </div>
+
+    <script>
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'default',
+            securityLevel: 'loose'
+        });
+
+        function showTab(tabId) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Deactivate all tabs
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show the selected tab content
+            document.getElementById(tabId).classList.add('active');
+            
+            // Activate the clicked tab
+            document.querySelector(`.tab[onclick="showTab('${tabId}')"]`).classList.add('active');
+        }
+    </script>
+</body>
+</html> 

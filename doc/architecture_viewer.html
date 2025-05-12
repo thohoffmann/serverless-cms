@@ -150,10 +150,10 @@
                 <h2>High Level Architecture</h2>
                 <p>This view shows the major components of the Serverless CMS at a conceptual level:</p>
                 <ul>
-                    <li><strong>Frontend</strong>: A React web client application</li>
+                    <li><strong>Frontend</strong>: A React web client application (future) and API Test Page (implemented)</li>
                     <li><strong>API & Compute</strong>: AWS API Gateway serving as the content API</li>
-                    <li><strong>Storage</strong>: DynamoDB for data persistence</li>
-                    <li><strong>Security</strong>: Cognito for authentication and authorization</li>
+                    <li><strong>Storage</strong>: DynamoDB for data persistence (implemented with CRUD operations)</li>
+                    <li><strong>Security</strong>: Cognito for authentication and authorization (future)</li>
                 </ul>
                 <p>This high-level view is ideal for explaining the system to non-technical stakeholders or for initial planning discussions.</p>
             </div>
@@ -162,11 +162,11 @@
                 <h2>Service Level Architecture</h2>
                 <p>This mid-level view provides more details on the AWS services used in each component:</p>
                 <ul>
-                    <li><strong>Frontend Services</strong>: CloudFront CDN, S3 for website hosting, and Route53 for DNS</li>
-                    <li><strong>API & Compute</strong>: API Gateway, Lambda Functions, and EventBridge</li>
-                    <li><strong>Storage</strong>: DynamoDB tables and S3 buckets for media storage</li>
-                    <li><strong>Security</strong>: Cognito, WAF, and IAM for permissions</li>
-                    <li><strong>DevOps</strong>: CodePipeline, CloudWatch, and CloudFormation</li>
+                    <li><strong>Frontend Services</strong>: CloudFront CDN, S3 for website hosting (future), and API Test Page (implemented)</li>
+                    <li><strong>API & Compute</strong>: API Gateway with Lambda function implementing full CRUD operations</li>
+                    <li><strong>Storage</strong>: DynamoDB table for content storage (active) and S3 bucket for media storage (future)</li>
+                    <li><strong>Security</strong>: Cognito, WAF, and IAM for permissions (future implementation)</li>
+                    <li><strong>DevOps</strong>: CloudWatch for monitoring, and CDK for infrastructure as code (implemented)</li>
                 </ul>
                 <p>This view helps architects and developers understand the service architecture and interactions.</p>
             </div>
@@ -175,12 +175,12 @@
                 <h2>Detailed Implementation</h2>
                 <p>This detailed view shows the complete implementation of the Serverless CMS:</p>
                 <ul>
-                    <li><strong>Frontend Implementation</strong>: React app with S3 static hosting and CloudFront CDN</li>
-                    <li><strong>API Endpoints</strong>: Specific API Gateway endpoints for content operations</li>
-                    <li><strong>Lambda Functions</strong>: Dedicated functions for CRUD operations</li>
-                    <li><strong>Storage Details</strong>: Content and metadata tables in DynamoDB, media and backup S3 buckets</li>
-                    <li><strong>Security Implementation</strong>: Cognito user pools, WAF protection, and IAM roles</li>
-                    <li><strong>Monitoring & Logging</strong>: CloudWatch logs, metrics and alarms</li>
+                    <li><strong>Frontend Implementation</strong>: HTML/JS API Test Page for testing API endpoints (implemented)</li>
+                    <li><strong>API Endpoints</strong>: API Gateway with endpoints for all content operations (implemented)</li>
+                    <li><strong>Lambda Function</strong>: Single content handler implementing CRUD operations with DynamoDB integration (implemented)</li>
+                    <li><strong>Storage Details</strong>: Content table in DynamoDB with UUID primary keys (implemented)</li>
+                    <li><strong>Security Implementation</strong>: Cognito user pools, WAF protection, and IAM roles (future)</li>
+                    <li><strong>Monitoring & Logging</strong>: CloudWatch logs for API and Lambda function (implemented)</li>
                 </ul>
                 <p>This view provides developers with implementation details needed for building and maintaining the system.</p>
             </div>

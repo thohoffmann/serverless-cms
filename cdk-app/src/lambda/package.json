@@ -1,0 +1,13 @@
+{
+  "name": "serverless-cms-lambda",
+  "version": "1.0.0",
+  "description": "Lambda functions for Serverless CMS",
+  "main": "contentHandler.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "aws-sdk": "^2.1583.0",
+    "uuid": "^9.0.1"
+  }
+} 

@@ -31,26 +31,23 @@ with Diagram("Serverless CMS Architecture", show=True, filename="serverless_cms_
     
     # Lambda functions cluster
     with Cluster("Business Logic"):
-        content_lambda = Lambda("Content Lambda")
+        content_lambda = Lambda("Content Lambda\n(with CRUD operations)")
         
         # We'll have these in the future
         future_lambdas = [
-            Lambda("Create Content"),
-            Lambda("Read Content"),
-            Lambda("Update Content"),
-            Lambda("Delete Content"),
             Lambda("Media Handler")
         ]
     
     # Storage cluster
     with Cluster("Storage"):
-        dynamodb = DynamodbTable("Content Table")
+        dynamodb = DynamodbTable("Content Table\n(active)")
         s3_bucket = S3("Media Bucket")
     
     # Front end (future)
     with Cluster("Frontend (Future)"):
         cloudfront = CloudFront("CloudFront")
         s3_website = S3("Static Website")
+        html_tester = S3("API Test Page")
     
     # Connect the components
     users >> api
@@ -65,5 +62,6 @@ with Diagram("Serverless CMS Architecture", show=True, filename="serverless_cms_
     users >> cognito
     cognito >> api
     
-    # Frontend (future)
+    # Frontend (current and future)
+    users >> html_tester
     users >> cloudfront >> s3_website 

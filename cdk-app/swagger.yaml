@@ -1,0 +1,169 @@
+openapi: 3.0.0
+info:
+  title: Serverless CMS API
+  description: API for managing content in a serverless CMS
+  version: 1.0.0
+servers:
+  - url: https://fumzzf8i07.execute-api.eu-west-2.amazonaws.com/prod
+    description: Production server
+
+paths:
+  /content:
+    get:
+      summary: Get all content
+      description: Retrieve a list of all content items
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  path:
+                    type: string
+                  method:
+                    type: string
+                  time:
+                    type: string
+                    format: date-time
+
+    post:
+      summary: Create new content
+      description: Create a new content item
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - title
+                - content
+                - author
+              properties:
+                title:
+                  type: string
+                content:
+                  type: string
+                author:
+                  type: string
+                timestamp:
+                  type: string
+                  format: date-time
+      responses:
+        '200':
+          description: Content created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  path:
+                    type: string
+                  method:
+                    type: string
+
+  /content/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Content item ID
+
+    get:
+      summary: Get content by ID
+      description: Retrieve a specific content item by its ID
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  path:
+                    type: string
+                  method:
+                    type: string
+
+    put:
+      summary: Update content
+      description: Update an existing content item
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                content:
+                  type: string
+                author:
+                  type: string
+                timestamp:
+                  type: string
+                  format: date-time
+      responses:
+        '200':
+          description: Content updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  path:
+                    type: string
+                  method:
+                    type: string
+
+    delete:
+      summary: Delete content
+      description: Delete a content item
+      responses:
+        '200':
+          description: Content deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  path:
+                    type: string
+                  method:
+                    type: string
+
+components:
+  schemas:
+    Content:
+      type: object
+      required:
+        - title
+        - content
+        - author
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        content:
+          type: string
+        author:
+          type: string
+        timestamp:
+          type: string
+          format: date-time 

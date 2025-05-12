@@ -209,8 +209,8 @@
             <button onclick="toggleLine()" id="lineToggle">Show Line</button>
             <div id="controls" style="display: none; margin-top: 10px;">
                 <div id="dragInstructions" style="margin: 10px 0; color: #666; font-style: italic;">
-                    • Drag up/down on the chart to adjust the offset<br>
-                    • Drag the circles at line ends to adjust the angle
+                    • Drag the circles at line ends to adjust the angle<br>
+                    • Drag the middle of the line to adjust the offset
                 </div>
             </div>
         </div>
@@ -230,6 +230,21 @@
         let lastY = 0;
         let isDraggingEndpoint = false;
         let activeEndpoint = null;
+        let originalData = null;
+        let endpointPositions = {
+            start: { x: 0, y: 0 },
+            end: { x: 0, y: 0 }
+        };
+        let currentTrendData = [];
+        let initialMouseY = 0;
+        let initialMouseDataValue = 0;
+        let initialMouseOffset = 0;
+
+        // Points rendered at the ends of the trend line for angle adjustment
+        const endpoints = {
+            start: { x: 0, y: 0 },
+            end: { x: 0, y: 0 }
+        };
 
         const data = {
             labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
@@ -248,12 +263,6 @@
                     tension: 0
                 }
             ]
-        };
-
-        // Points rendered at the ends of the trend line for angle adjustment
-        const endpoints = {
-            start: { x: 0, y: 0 },
-            end: { x: 0, y: 0 }
         };
 
         function calculateTrendLine() {
@@ -297,6 +306,51 @@
             myChart.update();
         }
 
+        function applyOffsetWithoutChangingAngle() {
+            if (!myChart) return;
+            
+            // Store the current data points for the trend line
+            const currentTrendData = [...data.datasets[1].data];
+            
+            if (currentTrendData.length >= 2) {
+                // Calculate midpoint of the current line
+                let sum = 0;
+                for (let i = 0; i < currentTrendData.length; i++) {
+                    sum += currentTrendData[i];
+                }
+                const midpointY = sum / currentTrendData.length;
+                
+                // Calculate the new midpoint with offset applied
+                const prices = data.datasets[0].data;
+                const priceRange = Math.max(...prices) - Math.min(...prices);
+                const verticalOffset = (offset / 100) * priceRange;
+                
+                // Calculate midpoint of price data
+                sum = 0;
+                for (let i = 0; i < prices.length; i++) {
+                    sum += prices[i];
+                }
+                const baselineMidpoint = sum / prices.length;
+                
+                // Calculate how much to shift each point
+                const shiftAmount = baselineMidpoint + verticalOffset - midpointY;
+                
+                // Apply shift to each point
+                for (let i = 0; i < currentTrendData.length; i++) {
+                    currentTrendData[i] += shiftAmount;
+                }
+                
+                // Update the trend line data
+                data.datasets[1].data = currentTrendData;
+                
+                // Update the chart
+                myChart.update();
+            } else {
+                // Fall back to normal trend calculation if we don't have enough data points
+                updateChart();
+            }
+        }
+
         function toggleLine() {
             console.log('Toggling line...');
             showLine = !showLine;
@@ -324,6 +378,20 @@
                 isDraggingEndpoint = true;
                 activeEndpoint = 'start';
                 document.body.style.cursor = 'move';
+                
+                // Store original positions for reference
+                endpointPositions.start = { 
+                    x: endpoints.start.x,
+                    y: endpoints.start.y
+                };
+                endpointPositions.end = { 
+                    x: endpoints.end.x,
+                    y: endpoints.end.y
+                };
+                
+                // Store original data before manipulation starts
+                originalData = [...data.datasets[0].data];
+                
                 return;
             }
             
@@ -333,68 +401,201 @@
                 isDraggingEndpoint = true;
                 activeEndpoint = 'end';
                 document.body.style.cursor = 'move';
+                
+                // Store original positions for reference
+                endpointPositions.start = { 
+                    x: endpoints.start.x,
+                    y: endpoints.start.y
+                };
+                endpointPositions.end = { 
+                    x: endpoints.end.x,
+                    y: endpoints.end.y
+                };
+                
+                // Store original data before manipulation starts
+                originalData = [...data.datasets[0].data];
+                
                 return;
             }
             
-            // Default offset dragging behavior
-            isDragging = true;
-            lastY = e.clientY || (e.touches ? e.touches[0].clientY : 0);
-            document.body.style.cursor = 'ns-resize';
+            // Check if clicking near the trend line (but not near endpoints)
+            if (isNearTrendLine(x, y) && !isNearEndpoints(x, y)) {
+                // Default offset dragging behavior
+                isDragging = true;
+                document.body.style.cursor = 'ns-resize';
+                
+                // Store the current trend data for reference
+                if (data.datasets[1].data && data.datasets[1].data.length > 0) {
+                    currentTrendData = [...data.datasets[1].data];
+                }
+                
+                // Get the y-scale to convert from pixel coordinates to data values
+                const yScale = myChart.scales.y;
+                
+                // Store initial mouse position in data values
+                initialMouseDataValue = yScale.getValueForPixel(y);
+                
+                // Store current offset from line to mouse
+                const midpointIndex = Math.floor(currentTrendData.length / 2);
+                const midpointValue = currentTrendData[midpointIndex];
+                initialMouseOffset = initialMouseDataValue - midpointValue;
+            }
+        }
+        
+        function isNearTrendLine(x, y) {
+            if (!myChart || !data.datasets[1].data.length) return false;
+            
+            const meta = myChart.getDatasetMeta(1);
+            if (!meta.data || meta.data.length < 2) return false;
+            
+            // Check each segment of the line
+            for (let i = 0; i < meta.data.length - 1; i++) {
+                const x1 = meta.data[i].x;
+                const y1 = meta.data[i].y;
+                const x2 = meta.data[i + 1].x;
+                const y2 = meta.data[i + 1].y;
+                
+                // Calculate distance from point to line segment
+                const distance = distanceToLineSegment(x, y, x1, y1, x2, y2);
+                
+                // If close enough to any segment, return true
+                if (distance < 15) {
+                    return true;
+                }
+            }
+            
+            return false;
+        }
+        
+        function isNearEndpoints(x, y) {
+            const endpointRadius = 15; // Slightly larger radius for easier interaction
+            
+            return (
+                Math.sqrt(Math.pow(x - endpoints.start.x, 2) + Math.pow(y - endpoints.start.y, 2)) < endpointRadius ||
+                Math.sqrt(Math.pow(x - endpoints.end.x, 2) + Math.pow(y - endpoints.end.y, 2)) < endpointRadius
+            );
+        }
+        
+        function distanceToLineSegment(x, y, x1, y1, x2, y2) {
+            // Calculate squared length of line segment
+            const l2 = (x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1);
+            
+            // If line is a point, return distance to the point
+            if (l2 === 0) return Math.sqrt((x - x1) * (x - x1) + (y - y1) * (y - y1));
+            
+            // Calculate projection of point onto line
+            const t = ((x - x1) * (x2 - x1) + (y - y1) * (y2 - y1)) / l2;
+            
+            // If projection is outside line segment, return distance to nearest endpoint
+            if (t < 0) return Math.sqrt((x - x1) * (x - x1) + (y - y1) * (y - y1));
+            if (t > 1) return Math.sqrt((x - x2) * (x - x2) + (y - y2) * (y - y2));
+            
+            // Calculate projection point on line
+            const projX = x1 + t * (x2 - x1);
+            const projY = y1 + t * (y2 - y1);
+            
+            // Return distance from point to projection
+            return Math.sqrt((x - projX) * (x - projX) + (y - projY) * (y - projY));
         }
 
         function handleDragMove(e) {
             if (!isDragging && !isDraggingEndpoint) return;
             
-            if (isDraggingEndpoint && activeEndpoint) {
+            if (isDraggingEndpoint && activeEndpoint && myChart) {
                 const canvas = myChart.canvas;
                 const rect = canvas.getBoundingClientRect();
-                const y = e.clientY - rect.top || (e.touches ? e.touches[0].clientY - rect.top : 0);
+                const mouseY = e.clientY - rect.top || (e.touches ? e.touches[0].clientY - rect.top : 0);
                 
-                // Calculate new angle based on dragging
-                const prices = data.datasets[0].data;
-                const priceRange = Math.max(...prices) - Math.min(...prices);
+                // Get the chart area boundaries
+                const chartArea = myChart.chartArea;
                 
-                // Different calculation based on which endpoint is being dragged
-                if (activeEndpoint === 'start') {
-                    // Calculate distance from original position
-                    const deltaY = endpoints.start.y - y;
+                // Clamp the y position to stay within the chart area
+                const clampedY = Math.max(chartArea.top, Math.min(chartArea.bottom, mouseY));
+                
+                // Get the y-scale to convert from pixel coordinates to data values
+                const yScale = myChart.scales.y;
+                
+                // Update the trend line data point for the active endpoint
+                const dataIndex = activeEndpoint === 'start' ? 0 : data.datasets[1].data.length - 1;
+                
+                // Convert pixel Y to data value
+                const dataValue = yScale.getValueForPixel(clampedY);
+                
+                // Create a copy of the trend line data
+                let trendData = [...data.datasets[1].data];
+                
+                // Update only the dragged endpoint
+                trendData[dataIndex] = dataValue;
+                
+                // Calculate a straight line between the two endpoints
+                if (trendData.length > 2) {
+                    const startValue = trendData[0];
+                    const endValue = trendData[trendData.length - 1];
                     
-                    // Adjust the angle (with a smaller factor for more precision)
-                    angle += deltaY * 0.05;
-                } else if (activeEndpoint === 'end') {
-                    // Calculate distance from original position
-                    const deltaY = endpoints.end.y - y;
-                    
-                    // Adjust the angle (with a smaller factor for more precision)
-                    angle -= deltaY * 0.05;
+                    for (let i = 1; i < trendData.length - 1; i++) {
+                        const progress = i / (trendData.length - 1);
+                        trendData[i] = startValue + (endValue - startValue) * progress;
+                    }
                 }
                 
-                // Clamp angle between -85 and 85 degrees to prevent extreme angles
-                angle = Math.max(-85, Math.min(85, angle));
+                // Update the dataset with the new trend line
+                data.datasets[1].data = trendData;
                 
-                // Update angle indicator
-                updateAngleIndicator();
+                // Calculate the angle based on the new endpoint positions
+                if (trendData.length >= 2) {
+                    const startY = trendData[0];
+                    const endY = trendData[trendData.length - 1];
+                    const deltaY = endY - startY;
+                    const deltaX = originalData.length - 1; // Assuming x-axis is 0 to length-1
+                    
+                    // Calculate angle in degrees: arctan(dy/dx) * (180/PI)
+                    angle = Math.atan(deltaY / deltaX) * (180 / Math.PI);
+                    
+                    // Update angle indicator
+                    updateAngleIndicator();
+                }
                 
-                updateChart();
+                myChart.update();
                 return;
             }
             
             // Regular offset dragging
-            if (isDragging) {
-                const clientY = e.clientY || (e.touches ? e.touches[0].clientY : lastY);
-                const deltaY = lastY - clientY;
-                lastY = clientY;
+            if (isDragging && myChart) {
+                const canvas = myChart.canvas;
+                const rect = canvas.getBoundingClientRect();
+                const mouseY = e.clientY - rect.top || (e.touches ? e.touches[0].clientY - rect.top : 0);
                 
-                // Adjust sensitivity of the drag
-                offset += deltaY * 0.5;
+                // Get the y-scale to convert from pixel coordinates to data values
+                const yScale = myChart.scales.y;
                 
-                // Clamp offset between -100 and 100
-                offset = Math.max(-100, Math.min(100, offset));
+                // Convert current mouse position to data value
+                const mouseDataValue = yScale.getValueForPixel(mouseY);
                 
-                updateChart();
+                // Create a copy of the original trend data
+                let newTrendData = [...currentTrendData];
+                
+                // Calculate the mid point of the trend line
+                const midpointIndex = Math.floor(newTrendData.length / 2);
+                const currentMidpoint = newTrendData[midpointIndex];
+                
+                // Calculate how much to shift the entire line to follow the mouse
+                // We subtract the initial offset to keep the relative position consistent
+                const targetMidpoint = mouseDataValue - initialMouseOffset;
+                const shiftAmount = targetMidpoint - currentMidpoint;
+                
+                // Apply the shift to each point
+                for (let i = 0; i < newTrendData.length; i++) {
+                    newTrendData[i] += shiftAmount;
+                }
+                
+                // Update the trend line data
+                data.datasets[1].data = newTrendData;
+                
+                // Update the chart
+                myChart.update();
             }
         }
-
+        
         function handleDragEnd() {
             isDragging = false;
             isDraggingEndpoint = false;
@@ -407,7 +608,7 @@
 
         function updateAngleIndicator() {
             const angleIndicator = document.getElementById('angleIndicator');
-            angleIndicator.textContent = `Angle: ${angle.toFixed(1)}°`;
+            angleIndicator.innerHTML = `Angle: ${angle.toFixed(1)}°`;
             angleIndicator.style.display = isDraggingEndpoint ? 'block' : 'none';
         }
 

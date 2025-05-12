@@ -207,12 +207,9 @@
         <div style="margin-top: 20px;">
             <button onclick="toggleLine()" id="lineToggle">Show Line</button>
             <div id="controls" style="display: none; margin-top: 10px;">
-                <label>
-                    Angle: <input type="range" min="-90" max="90" value="45" oninput="updateAngle(this.value)">
-                    <span id="angleValue">45°</span>
-                </label>
-                <div id="dragInstructions" style="margin-top: 10px; color: #666; font-style: italic;">
-                    Drag up/down on the chart to adjust the offset
+                <div id="dragInstructions" style="margin: 10px 0; color: #666; font-style: italic;">
+                    • Drag up/down on the chart to adjust the offset<br>
+                    • Drag the circles at line ends to adjust the angle
                 </div>
             </div>
         </div>
@@ -230,6 +227,8 @@
         let offset = 0;
         let isDragging = false;
         let lastY = 0;
+        let isDraggingEndpoint = false;
+        let activeEndpoint = null;
 
         const data = {
             labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
@@ -250,6 +249,12 @@
             ]
         };
 
+        // Points rendered at the ends of the trend line for angle adjustment
+        const endpoints = {
+            start: { x: 0, y: 0 },
+            end: { x: 0, y: 0 }
+        };
+
         function calculateTrendLine() {
             const prices = data.datasets[0].data;
             const firstPrice = prices[0];
@@ -258,12 +263,29 @@
             const verticalOffset = (offset / 100) * priceRange;
             
             const angleRad = (angle * Math.PI) / 180;
-            return data.labels.map((_, index) => {
+            const trendData = data.labels.map((_, index) => {
                 const progress = index / (data.labels.length - 1);
                 const baseY = firstPrice + (lastPrice - firstPrice) * progress;
                 const offsetY = Math.tan(angleRad) * progress * priceRange;
                 return baseY + offsetY + verticalOffset;
             });
+
+            // Store endpoint positions for dragging
+            if (myChart) {
+                const meta = myChart.getDatasetMeta(1);
+                if (meta.data && meta.data.length > 0) {
+                    endpoints.start = {
+                        x: meta.data[0].x,
+                        y: meta.data[0].y
+                    };
+                    endpoints.end = {
+                        x: meta.data[meta.data.length - 1].x,
+                        y: meta.data[meta.data.length - 1].y
+                    };
+                }
+            }
+            
+            return trendData;
         }
 
         function updateChart() {
@@ -284,37 +306,95 @@
             updateChart();
         }
 
-        function updateAngle(value) {
-            angle = parseInt(value);
-            document.getElementById('angleValue').textContent = angle + '°';
-            updateChart();
-        }
-
         function handleDragStart(e) {
             if (!showLine) return;
+            
+            const canvas = myChart.canvas;
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left || (e.touches ? e.touches[0].clientX - rect.left : 0);
+            const y = e.clientY - rect.top || (e.touches ? e.touches[0].clientY - rect.top : 0);
+            
+            // Check if clicking near an endpoint
+            const endpointRadius = 10;
+            
+            if (
+                Math.sqrt(Math.pow(x - endpoints.start.x, 2) + Math.pow(y - endpoints.start.y, 2)) < endpointRadius
+            ) {
+                isDraggingEndpoint = true;
+                activeEndpoint = 'start';
+                document.body.style.cursor = 'move';
+                return;
+            }
+            
+            if (
+                Math.sqrt(Math.pow(x - endpoints.end.x, 2) + Math.pow(y - endpoints.end.y, 2)) < endpointRadius
+            ) {
+                isDraggingEndpoint = true;
+                activeEndpoint = 'end';
+                document.body.style.cursor = 'move';
+                return;
+            }
+            
+            // Default offset dragging behavior
             isDragging = true;
-            lastY = e.clientY || e.touches[0].clientY;
+            lastY = e.clientY || (e.touches ? e.touches[0].clientY : 0);
             document.body.style.cursor = 'ns-resize';
         }
 
         function handleDragMove(e) {
-            if (!isDragging) return;
+            if (!isDragging && !isDraggingEndpoint) return;
             
-            const clientY = e.clientY || (e.touches ? e.touches[0].clientY : lastY);
-            const deltaY = lastY - clientY;
-            lastY = clientY;
+            if (isDraggingEndpoint && activeEndpoint) {
+                const canvas = myChart.canvas;
+                const rect = canvas.getBoundingClientRect();
+                const y = e.clientY - rect.top || (e.touches ? e.touches[0].clientY - rect.top : 0);
+                
+                // Calculate new angle based on dragging
+                const prices = data.datasets[0].data;
+                const priceRange = Math.max(...prices) - Math.min(...prices);
+                
+                // Different calculation based on which endpoint is being dragged
+                if (activeEndpoint === 'start') {
+                    // Calculate distance from original position
+                    const deltaY = endpoints.start.y - y;
+                    
+                    // Adjust the angle (with some dampening factor)
+                    angle += deltaY * 0.2;
+                } else if (activeEndpoint === 'end') {
+                    // Calculate distance from original position
+                    const deltaY = endpoints.end.y - y;
+                    
+                    // Adjust the angle (with some dampening factor)
+                    angle -= deltaY * 0.2;
+                }
+                
+                // Clamp angle between -85 and 85 degrees to prevent extreme angles
+                angle = Math.max(-85, Math.min(85, angle));
+                
+                updateChart();
+                return;
+            }
             
-            // Adjust sensitivity of the drag
-            offset += deltaY * 0.5;
-            
-            // Clamp offset between -100 and 100
-            offset = Math.max(-100, Math.min(100, offset));
-            
-            updateChart();
+            // Regular offset dragging
+            if (isDragging) {
+                const clientY = e.clientY || (e.touches ? e.touches[0].clientY : lastY);
+                const deltaY = lastY - clientY;
+                lastY = clientY;
+                
+                // Adjust sensitivity of the drag
+                offset += deltaY * 0.5;
+                
+                // Clamp offset between -100 and 100
+                offset = Math.max(-100, Math.min(100, offset));
+                
+                updateChart();
+            }
         }
 
         function handleDragEnd() {
             isDragging = false;
+            isDraggingEndpoint = false;
+            activeEndpoint = null;
             document.body.style.cursor = 'default';
         }
 
@@ -337,8 +417,52 @@
                             y: {
                                 beginAtZero: false
                             }
+                        },
+                        plugins: {
+                            legend: {
+                                display: true
+                            }
                         }
-                    }
+                    },
+                    plugins: [{
+                        id: 'endpointMarkers',
+                        afterDraw: function(chart) {
+                            if (!showLine) return;
+                            
+                            const ctx = chart.ctx;
+                            const meta = chart.getDatasetMeta(1);
+                            
+                            if (meta.data.length > 0) {
+                                // Draw circles at the endpoints
+                                const firstPoint = meta.data[0];
+                                const lastPoint = meta.data[meta.data.length - 1];
+                                
+                                ctx.save();
+                                ctx.beginPath();
+                                ctx.arc(firstPoint.x, firstPoint.y, 6, 0, 2 * Math.PI);
+                                ctx.fillStyle = 'rgba(255, 99, 132, 0.8)';
+                                ctx.fill();
+                                ctx.strokeStyle = 'white';
+                                ctx.lineWidth = 2;
+                                ctx.stroke();
+                                
+                                ctx.beginPath();
+                                ctx.arc(lastPoint.x, lastPoint.y, 6, 0, 2 * Math.PI);
+                                ctx.fillStyle = 'rgba(255, 99, 132, 0.8)';
+                                ctx.fill();
+                                ctx.strokeStyle = 'white';
+                                ctx.lineWidth = 2;
+                                ctx.stroke();
+                                ctx.restore();
+                                
+                                // Update endpoint positions for dragging
+                                endpoints.start.x = firstPoint.x;
+                                endpoints.start.y = firstPoint.y;
+                                endpoints.end.x = lastPoint.x;
+                                endpoints.end.y = lastPoint.y;
+                            }
+                        }
+                    }]
                 });
                 console.log('Chart created:', myChart);
 

@@ -203,6 +203,7 @@
         <h2>Commodity Price Chart</h2>
         <div class="chart-container">
             <canvas id="commodityChart"></canvas>
+            <div id="angleIndicator" style="position: absolute; top: 10px; right: 10px; background-color: rgba(0,0,0,0.6); color: white; padding: 5px 10px; border-radius: 4px; font-size: 12px; display: none;"></div>
         </div>
         <div style="margin-top: 20px;">
             <button onclick="toggleLine()" id="lineToggle">Show Line</button>
@@ -358,18 +359,21 @@
                     // Calculate distance from original position
                     const deltaY = endpoints.start.y - y;
                     
-                    // Adjust the angle (with some dampening factor)
-                    angle += deltaY * 0.2;
+                    // Adjust the angle (with a smaller factor for more precision)
+                    angle += deltaY * 0.05;
                 } else if (activeEndpoint === 'end') {
                     // Calculate distance from original position
                     const deltaY = endpoints.end.y - y;
                     
-                    // Adjust the angle (with some dampening factor)
-                    angle -= deltaY * 0.2;
+                    // Adjust the angle (with a smaller factor for more precision)
+                    angle -= deltaY * 0.05;
                 }
                 
                 // Clamp angle between -85 and 85 degrees to prevent extreme angles
                 angle = Math.max(-85, Math.min(85, angle));
+                
+                // Update angle indicator
+                updateAngleIndicator();
                 
                 updateChart();
                 return;
@@ -396,6 +400,15 @@
             isDraggingEndpoint = false;
             activeEndpoint = null;
             document.body.style.cursor = 'default';
+            
+            // Hide angle indicator
+            document.getElementById('angleIndicator').style.display = 'none';
+        }
+
+        function updateAngleIndicator() {
+            const angleIndicator = document.getElementById('angleIndicator');
+            angleIndicator.textContent = `Angle: ${angle.toFixed(1)}°`;
+            angleIndicator.style.display = isDraggingEndpoint ? 'block' : 'none';
         }
 
         function initChart() {

@@ -239,6 +239,8 @@
         let initialMouseY = 0;
         let initialMouseDataValue = 0;
         let initialMouseOffset = 0;
+        let updatePending = false;
+        let lastMouseEvent = null;
 
         // Points rendered at the ends of the trend line for angle adjustment
         const endpoints = {
@@ -501,6 +503,24 @@
         function handleDragMove(e) {
             if (!isDragging && !isDraggingEndpoint) return;
             
+            // Store the last mouse event for use in the animation frame
+            lastMouseEvent = e;
+            
+            // If update is already pending, don't schedule another one
+            if (!updatePending) {
+                updatePending = true;
+                requestAnimationFrame(updateChartFromMouseEvent);
+            }
+        }
+        
+        function updateChartFromMouseEvent() {
+            // Clear pending flag
+            updatePending = false;
+            
+            if (!lastMouseEvent) return;
+            
+            const e = lastMouseEvent;
+            
             if (isDraggingEndpoint && activeEndpoint && myChart) {
                 const canvas = myChart.canvas;
                 const rect = canvas.getBoundingClientRect();
@@ -518,7 +538,7 @@
                 // Update the trend line data point for the active endpoint
                 const dataIndex = activeEndpoint === 'start' ? 0 : data.datasets[1].data.length - 1;
                 
-                // Convert pixel Y to data value
+                // Convert pixel Y to data value with high precision
                 const dataValue = yScale.getValueForPixel(clampedY);
                 
                 // Create a copy of the trend line data
@@ -527,11 +547,12 @@
                 // Update only the dragged endpoint
                 trendData[dataIndex] = dataValue;
                 
-                // Calculate a straight line between the two endpoints
+                // Use linear interpolation for a smoother line
                 if (trendData.length > 2) {
                     const startValue = trendData[0];
                     const endValue = trendData[trendData.length - 1];
                     
+                    // Linear interpolation for each point between start and end
                     for (let i = 1; i < trendData.length - 1; i++) {
                         const progress = i / (trendData.length - 1);
                         trendData[i] = startValue + (endValue - startValue) * progress;
@@ -555,11 +576,12 @@
                     updateAngleIndicator();
                 }
                 
-                myChart.update();
+                // Performance optimization: Skip unnecessary calculations
+                myChart.update('none'); // Use 'none' mode for faster updates
                 return;
             }
             
-            // Regular offset dragging
+            // Regular offset dragging - optimized for performance
             if (isDragging && myChart) {
                 const canvas = myChart.canvas;
                 const rect = canvas.getBoundingClientRect();
@@ -568,7 +590,7 @@
                 // Get the y-scale to convert from pixel coordinates to data values
                 const yScale = myChart.scales.y;
                 
-                // Convert current mouse position to data value
+                // Direct conversion from mouse position to data value for higher precision
                 const mouseDataValue = yScale.getValueForPixel(mouseY);
                 
                 // Create a copy of the original trend data
@@ -578,12 +600,11 @@
                 const midpointIndex = Math.floor(newTrendData.length / 2);
                 const currentMidpoint = newTrendData[midpointIndex];
                 
-                // Calculate how much to shift the entire line to follow the mouse
-                // We subtract the initial offset to keep the relative position consistent
+                // Direct mouse tracking: calculate exactly where the line should be
                 const targetMidpoint = mouseDataValue - initialMouseOffset;
                 const shiftAmount = targetMidpoint - currentMidpoint;
                 
-                // Apply the shift to each point
+                // Apply the shift precisely to each point
                 for (let i = 0; i < newTrendData.length; i++) {
                     newTrendData[i] += shiftAmount;
                 }
@@ -591,8 +612,8 @@
                 // Update the trend line data
                 data.datasets[1].data = newTrendData;
                 
-                // Update the chart
-                myChart.update();
+                // Performance optimization: Use faster update mode
+                myChart.update('none');
             }
         }
         
@@ -601,6 +622,10 @@
             isDraggingEndpoint = false;
             activeEndpoint = null;
             document.body.style.cursor = 'default';
+            
+            // Clear any pending animation frame
+            updatePending = false;
+            lastMouseEvent = null;
             
             // Hide angle indicator
             document.getElementById('angleIndicator').style.display = 'none';
@@ -627,6 +652,9 @@
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
+                        animation: {
+                            duration: 0 // Disable animations for better performance during drag
+                        },
                         scales: {
                             y: {
                                 beginAtZero: false
